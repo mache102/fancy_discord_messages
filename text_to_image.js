@@ -10,7 +10,6 @@
 // @grant        none
 // ==/UserScript==
 
-
 /*
 sus logger
 
@@ -48,10 +47,16 @@ var amogus = (function() {
 })();
 
 
-
 (async function() {
-  async function load_all_fonts() {    
-    for (let font of FONTS) {
+  // fonts
+  class Font {
+    constructor(name, url) {
+      this.name = name;
+      this.url = url; 
+    }
+  }
+  async function load_all_fonts(fonts) {    
+    for (let font of fonts) {
       try {
         const fontFace = new FontFace(font.name, `url(${font.url})`);
         await fontFace.load();
@@ -63,14 +68,6 @@ var amogus = (function() {
       }
     }
   }
-
-  class Font {
-    constructor(name, url) {
-      this.name = name;
-      this.url = url; 
-    }
-  }
-
   const FONTS = [
     // new Font("Comic Neue", "https://fonts.gstatic.com/s/comicneue/v8/4UaHrEJDsxBrF37olUeD96rp5w.woff2"),
     // new Font("Creepster", "https://fonts.gstatic.com/s/creepster/v13/AlZy_zVUqJz4yMrniH4Rcn35.woff2"),
@@ -83,8 +80,7 @@ var amogus = (function() {
     // new Font("Merriweather", "https://fonts.gstatic.com/s/merriweather/v31/u-4D0qyriQwlOrhSvowK_l5UcA6zuSYEqOzpPe3HOZJ5eX1WtLaQwmYiScCmDxhtNOKl8yDr3icaFF31.woff2"),
     // new Font("Fleur De Leah", "https://fonts.gstatic.com/s/fleurdeleah/v9/AYCNpXX7ftYZWLhv9UmPJTMC1vGn4Q.woff2")
   ];
-
-  await load_all_fonts();
+  await load_all_fonts(FONTS);
   
   function random_font() {
     return FONTS[Math.floor(Math.random() * FONTS.length)].name;
