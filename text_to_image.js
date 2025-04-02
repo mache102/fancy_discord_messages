@@ -47,6 +47,92 @@ var amogus = (function() {
 })();
 
 
+var cmd_parser = (function() {
+
+
+
+  // !!img[size:96|color:white|bg:discord|pad:20|width:1600] Your message here
+  // using a preset config (i.e. big_fancy_text):
+  // !!img[config:big_fancy_text] Your message here
+
+  const colorMappings = {
+    'discord': '#36393f',
+    'black': '#000000',
+    'white': '#ffffff',
+    'red': '#ff0000',
+    'green': '#00ff00',
+    'blue': '#0000ff',
+    'yellow': '#ffff00',
+    'purple': '#800080',
+    'orange': '#ffa500',
+    'pink': '#ffc0cb',
+    'gray': '#808080'
+  };
+
+  const defaultOptions = {
+    fontSize: 96,
+    textColor: 'white',
+    bgColor: '#36393f',
+    padding: 20,
+    maxWidth: 1600
+  };
+
+  const PREFIX = "!!img";
+
+  function parse(message) {
+    if (!message.startsWith(PREFIX)) {
+      return null;
+    }
+    
+    let options = {...defaultOptions};
+    let text = message;
+    
+    const optionsMatch = message.match(new RegExp(`^${PREFIX}\\[([^\\]]*)\\]\\s*(.*)`, 's'));
+    if (optionsMatch) {
+      const optionsStr = optionsMatch[1];
+      text = optionsMatch[2];
+      
+      // Parse the options
+      const optionPairs = optionsStr.split('|');
+      for (const pair of optionPairs) {
+        const [key, value] = pair.split(':').map(s => s.trim());
+        
+        if (!key || !value) continue;
+        
+        switch (key.toLowerCase()) {
+          case 'size':
+            options.fontSize = parseInt(value) || defaultOptions.fontSize;
+            break;
+          case 'color':
+            options.textColor = colorMappings[value.toLowerCase()] || value;
+            break;
+          case 'bg':
+            options.bgColor = colorMappings[value.toLowerCase()] || value;
+            break;
+          case 'pad':
+            options.padding = parseInt(value) || defaultOptions.padding;
+            break;
+          case 'width':
+            options.maxWidth = parseInt(value) || defaultOptions.maxWidth;
+            break;
+        }
+      }
+    } else {
+      // No options specified, just extract text
+      text = message.substring(5).trim(); // Remove "!!img " prefix
+    }
+    
+    return {
+      options,
+      text
+    };
+  }
+
+  return {
+    parse
+  };
+})();
+
 (async function() {
   // fonts
   class Font {
