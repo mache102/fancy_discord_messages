@@ -49,11 +49,20 @@ var amogus = (function() {
 
 var cmd_parser = (function() {
 
+  /*
+  1. send a message:
+  !!img[size=96,color=white,bg=discord,pad=20,width=1600] Your message here
 
+  1a. send a message with a preset config:
+  !!img[config=big_fancy_text] Your message here
 
-  // !!img[size:96|color:white|bg:discord|pad:20|width:1600] Your message here
-  // using a preset config (i.e. big_fancy_text):
-  // !!img[config:big_fancy_text] Your message here
+  2. set a config:
+  !!setconfig[name=big_fancy_text,size=96,color=white,bg=discord,pad=20,width=1600]
+  if the config exists, it will be overwritten
+
+  3. delete a config:
+  !!delconfig[name=big_fancy_text]
+  */
 
   const colorMappings = {
     'discord': '#36393f',
@@ -69,67 +78,174 @@ var cmd_parser = (function() {
     'gray': '#808080'
   };
 
-  const defaultOptions = {
-    fontSize: 96,
+  const default_config = {
+    fontSize: 24,
     textColor: 'white',
     bgColor: '#36393f',
     padding: 20,
     maxWidth: 1600
   };
 
-  const PREFIX = "!!img";
+  const PREFIX = "!!";
+  const IMG_PREFIX = `${PREFIX}img`;
+  const SET_CONFIG_PREFIX = `${PREFIX}setconfig`;
+  const DEL_CONFIG_PREFIX = `${PREFIX}delconfig`;
+
+  let img_match_re = new RegExp(`^${IMG_PREFIX}\\[([^\\]]*)\\]\\s*(.*)`, 's');
+  let setconfig_match_re = new RegExp(`^${SET_CONFIG_PREFIX}\\[([^\\]]*)\\]`, 's');
+  let delconfig_match_re = new RegExp(`^${DEL_CONFIG_PREFIX}\\[([^\\]]*)\\]`, 's');
 
   function parse(message) {
-    if (!message.startsWith(PREFIX)) {
-      return null;
+    if (message.startsWith(IMG_PREFIX)) {
+      return parseImgCommand(message);
+    } else if (message.startsWith(SET_CONFIG_PREFIX)) {
+      return parseSetConfigCommand(message);
+    } else if (message.startsWith(DEL_CONFIG_PREFIX)) {
+      return parseDelConfigCommand(message);
     }
     
-    let options = {...defaultOptions};
-    let text = message;
-    
-    const optionsMatch = message.match(new RegExp(`^${PREFIX}\\[([^\\]]*)\\]\\s*(.*)`, 's'));
-    if (optionsMatch) {
-      const optionsStr = optionsMatch[1];
-      text = optionsMatch[2];
+    return null;
+  }
+
+  const CONFIG_SPLIT_CHAR = ',';
+  const CONFIG_PAIR_SPLIT_CHAR = '=';
+
+  function parse_config(configStr) {
+    const optionPairs = configStr.split(CONFIG_SPLIT_CHAR);
+    for (const pair of optionPairs) {
+      const [key, value] = pair.split(CONFIG_PAIR_SPLIT_CHAR).map(s => s.trim());
       
-      // Parse the options
-      const optionPairs = optionsStr.split('|');
+      if (!key || !value) continue;
+      
+      switch (key.toLowerCase()) {
+        case 'name':
+          configName = value;
+          break;
+        case 'size':
+          config.fontSize = parseInt(value) || default_config.fontSize;
+          break;
+        case 'color':
+          config.textColor = colorMappings[value.toLowerCase()] || value;
+          break;
+        case 'bg':
+          config.bgColor = colorMappings[value.toLowerCase()] || value;
+          break;
+        case 'pad':
+          config.padding = parseInt(value) || default_config.padding;
+          break;
+        case 'width':
+          config.maxWidth = parseInt(value) || default_config.maxWidth;
+          break;
+      }
+    }
+
+    return config;
+  }
+
+  /*
+  returns:
+  {
+    action: str,
+    config: obj,
+    configName: str,
+    text: str
+  }
+  */
+  function parseImgCommand(message) {
+    let config = {...default_config};
+    let text = message;
+    let configName = null;
+    
+    const configMatch = message.match(img_match_re);
+    if (configMatch) {
+      const configStr = configMatch[1];
+      text = configMatch[2];
+      
+      config = parse_config(configStr);
+    } else {
+      // No config specified, just extract text
+      text = message.substring(IMG_PREFIX.length).trim();
+    }
+    
+    return {
+      action: 'render',
+      config,
+      configName,
+      text
+    };
+  }
+
+  /*
+  returns:
+  {
+    action: str,
+    config: obj,
+    configName: str
+  }
+  */
+  function parseSetConfigCommand(message) {
+    let config = {...default_config};
+    let configName = null;
+    
+    const configMatch = message.match(setconfig_match_re);
+    if (configMatch) {
+      const configStr = configMatch[1];
+      
+      config = parse_config(configStr);
+    }
+    
+    if (!configName) {
+      return null; // Config name is required
+    }
+    
+    return {
+      action: 'setconfig',
+      configName,
+      config
+    };
+  }
+
+    /*
+  returns:
+  {
+    action: str,
+    configName: str
+  }
+  */
+  function parseDelConfigCommand(message) {
+    let configName = null;
+    
+    const configMatch = message.match(delconfig_match_re);
+    if (configMatch) {
+      const configStr = configMatch[1];
+      
+      // Parse the config
+      const optionPairs = configStr.split('|');
       for (const pair of optionPairs) {
         const [key, value] = pair.split(':').map(s => s.trim());
         
         if (!key || !value) continue;
         
-        switch (key.toLowerCase()) {
-          case 'size':
-            options.fontSize = parseInt(value) || defaultOptions.fontSize;
-            break;
-          case 'color':
-            options.textColor = colorMappings[value.toLowerCase()] || value;
-            break;
-          case 'bg':
-            options.bgColor = colorMappings[value.toLowerCase()] || value;
-            break;
-          case 'pad':
-            options.padding = parseInt(value) || defaultOptions.padding;
-            break;
-          case 'width':
-            options.maxWidth = parseInt(value) || defaultOptions.maxWidth;
-            break;
+        if (key.toLowerCase() === 'name') {
+          configName = value;
+          break;
         }
       }
-    } else {
-      // No options specified, just extract text
-      text = message.substring(5).trim(); // Remove "!!img " prefix
+    }
+    
+    if (!configName) {
+      return null; // Config name is required
     }
     
     return {
-      options,
-      text
+      action: 'delconfig',
+      configName
     };
   }
 
   return {
-    parse
+    parse,
+    default_config
   };
 })();
 
@@ -173,14 +289,14 @@ var cmd_parser = (function() {
   }
 
   // wrapper func
-  function text_to_image(text, options = {}) {
+  function text_to_image(text, config = {}) {
     const { 
       fontSize = 96, 
       textColor = 'white',
       bgColor = '#36393f', // Discord dark theme color
       padding = 20, // padding around the text in pixels
       maxWidth = 1600 // max width of the image in pixels
-    } = options;
+    } = config;
     
     const measuringCanvas = document.createElement('canvas');
     const measuringCtx = measuringCanvas.getContext('2d');
