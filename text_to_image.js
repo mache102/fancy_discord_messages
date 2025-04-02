@@ -50,22 +50,6 @@ var amogus = (function() {
 
 
 (async function() {
-  // unused cuz ew cors
-  async function get_woff_url_from_url(gstatic_url) {
-    const response = await fetch(gstatic_url);
-    let text = await response.text();
-    // separate by @font-face
-    let font_faces = text.split("@font-face");
-    // find the font face with style:normal and weight:400
-    let font_face = font_faces.find(face => face.includes("font-style: normal") && face.includes("font-weight: 400"));
-    let font_url;
-    try {
-      font_url = font_face.match(/url\(([^)]+)\)/)[1];
-    } catch (e) {
-    }
-    return font_url;
-  }
-
   async function load_all_fonts() {    
     for (let font of FONTS) {
       try {
@@ -78,12 +62,6 @@ var amogus = (function() {
         console.error(`Failed to load font ${font.name}:`, err);
       }
     }
-  }
-
-  function make_gstatic_font_url(font_name) {
-    font_name = font_name.replace(/ /g, "+");
-    // https://fonts.googleapis.com/css2?family=Roboto
-    return `https://fonts.googleapis.com/css2?family=${font_name}`;
   }
 
   class Font {
@@ -116,7 +94,6 @@ var amogus = (function() {
   function text_to_image(text, options = {}) {
     const { 
       fontSize = 96, 
-      fontFamily = 'Comic Sans, sans-serif',
       textColor = 'white',
       bgColor = '#36393f', // Discord dark theme color
       padding = 20, // padding around the text in pixels
