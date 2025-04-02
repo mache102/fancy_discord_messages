@@ -7,7 +7,8 @@
 // @author       vec3f
 // @match        https://discord.com/channels/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=discord.com
-// @grant        none
+// @grant        GM_setValue
+// @grant        GM_getValue
 // ==/UserScript==
 
 /*
@@ -51,7 +52,7 @@ var cmd_parser = (function() {
 
   /*
   1. send a message:
-  !!img[size=96,color=white,bg=discord,pad=20,width=1600] Your message here
+  !!img[size=96,font=Arial,color=white,bg=discord,pad=20,width=1600] Your message here
 
   1a. send a message with a preset config:
   !!img[config=big_fancy_text] Your message here
@@ -79,6 +80,7 @@ var cmd_parser = (function() {
   };
 
   const default_config = {
+    fontName: 'Arial',
     fontSize: 24,
     textColor: 'white',
     bgColor: '#36393f',
@@ -111,15 +113,19 @@ var cmd_parser = (function() {
   const CONFIG_PAIR_SPLIT_CHAR = '=';
 
   function parse_config(configStr) {
+    let config = {...default_config};
     const optionPairs = configStr.split(CONFIG_SPLIT_CHAR);
     for (const pair of optionPairs) {
       const [key, value] = pair.split(CONFIG_PAIR_SPLIT_CHAR).map(s => s.trim());
       
       if (!key || !value) continue;
-      
+
       switch (key.toLowerCase()) {
         case 'name':
-          configName = value;
+          config.name = value;
+          break;
+        case 'font':
+          config.fontName = value;
           break;
         case 'size':
           config.fontSize = parseInt(value) || default_config.fontSize;
@@ -147,15 +153,12 @@ var cmd_parser = (function() {
   {
     action: str,
     config: obj,
-    configName: str,
     text: str
   }
   */
   function parseImgCommand(message) {
     let config = {...default_config};
     let text = message;
-    let configName = null;
-    
     const configMatch = message.match(img_match_re);
     if (configMatch) {
       const configStr = configMatch[1];
@@ -170,7 +173,6 @@ var cmd_parser = (function() {
     return {
       action: 'render',
       config,
-      configName,
       text
     };
   }
@@ -180,13 +182,11 @@ var cmd_parser = (function() {
   {
     action: str,
     config: obj,
-    configName: str
   }
   */
   function parseSetConfigCommand(message) {
     let config = {...default_config};
-    let configName = null;
-    
+
     const configMatch = message.match(setconfig_match_re);
     if (configMatch) {
       const configStr = configMatch[1];
@@ -194,13 +194,12 @@ var cmd_parser = (function() {
       config = parse_config(configStr);
     }
     
-    if (!configName) {
+    if (!config.name) {
       return null; // Config name is required
     }
     
     return {
       action: 'setconfig',
-      configName,
       config
     };
   }
@@ -245,7 +244,85 @@ var cmd_parser = (function() {
 
   return {
     parse,
-    default_config
+    default_config,
+    PREFIX
+  };
+})();
+
+// iframe storage works but gm set/getvalue is simpler
+var storage_wrapper = (function() {
+  function set(key, value) {
+    if (typeof value === 'object') {
+      value = JSON.stringify(value);
+    }
+
+    // set in gm storage
+    GM_setValue(key, value);
+  }
+
+  function get(key) {
+    let value = GM_getValue(key);
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      return value;
+    }
+
+    return null;
+  }
+
+  return {
+    set,
+    get
+  };
+})();
+
+var renderer = (function() {
+  let configs = {};
+
+
+  function load_configs() {
+    let stored_configs = storage_wrapper.get('fancy_discord_messages_configs');
+    if (stored_configs) {
+      try {
+        configs = JSON.parse(stored_configs);
+      } catch (e) {
+      }
+
+      amogus.log(`Loaded ${Object.keys(configs).length} stored configs`);
+    } else {
+      amogus.log('No stored configs found');
+    }
+  }
+
+  function save_configs() {
+    storage_wrapper.set('fancy_discord_messages_configs', JSON.stringify(configs));
+  }
+
+  // before unloading the page, save the configs
+  window.addEventListener('beforeunload', save_configs);
+
+  function get_config(name) {
+    amogus.log(`Retrieving config ${name}:`, config);
+    return configs[name];
+  }
+
+  function set_config(name, config) {
+    configs[name] = config;
+    amogus.log(`Saved config ${name}:`, config);
+  }
+
+  function del_config(name) {
+    delete configs[name];
+    amogus.log(`Deleted config ${name}`);
+  }
+
+  load_configs();
+
+  return {
+    get_config,
+    set_config,
+    del_config
   };
 })();
 
@@ -271,79 +348,21 @@ var cmd_parser = (function() {
     }
   }
   const FONTS = [
-    // new Font("Comic Neue", "https://fonts.gstatic.com/s/comicneue/v8/4UaHrEJDsxBrF37olUeD96rp5w.woff2"),
-    // new Font("Creepster", "https://fonts.gstatic.com/s/creepster/v13/AlZy_zVUqJz4yMrniH4Rcn35.woff2"),
-    // new Font("Great Vibes", "https://fonts.gstatic.com/s/greatvibes/v19/RWmMoKWR9v4ksMfaWd_JN9XFiaQ.woff2"),
-    // new Font("Roboto", "https://fonts.gstatic.com/s/roboto/v47/KFOMCnqEu92Fr1ME7kSn66aGLdTylUAMQXC89YmC2DPNWubEbVmUiAo.woff2"),
-    // new Font("Open Sans", "https://fonts.gstatic.com/s/opensans/v40/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsjZ0B4gaVI.woff2"),
-    // new Font("Montserrat", "https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Hw5aXo.woff2"),
-    // new Font("Ubuntu", "https://fonts.gstatic.com/s/ubuntu/v20/4iCs6KVjbNBYlgoKfw72.woff2"),
+    new Font("Comic Neue", "https://fonts.gstatic.com/s/comicneue/v8/4UaHrEJDsxBrF37olUeD96rp5w.woff2"),
+    new Font("Creepster", "https://fonts.gstatic.com/s/creepster/v13/AlZy_zVUqJz4yMrniH4Rcn35.woff2"),
+    new Font("Great Vibes", "https://fonts.gstatic.com/s/greatvibes/v19/RWmMoKWR9v4ksMfaWd_JN9XFiaQ.woff2"),
+    new Font("Roboto", "https://fonts.gstatic.com/s/roboto/v47/KFOMCnqEu92Fr1ME7kSn66aGLdTylUAMQXC89YmC2DPNWubEbVmUiAo.woff2"),
+    new Font("Open Sans", "https://fonts.gstatic.com/s/opensans/v40/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsjZ0B4gaVI.woff2"),
+    new Font("Montserrat", "https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Hw5aXo.woff2"),
+    new Font("Ubuntu", "https://fonts.gstatic.com/s/ubuntu/v20/4iCs6KVjbNBYlgoKfw72.woff2"),
     new Font("Lora", "https://fonts.gstatic.com/s/lora/v35/0QI6MX1D_JOuGQbT0gvTJPa787weuxJBkq0.woff2"),
-    // new Font("Merriweather", "https://fonts.gstatic.com/s/merriweather/v31/u-4D0qyriQwlOrhSvowK_l5UcA6zuSYEqOzpPe3HOZJ5eX1WtLaQwmYiScCmDxhtNOKl8yDr3icaFF31.woff2"),
-    // new Font("Fleur De Leah", "https://fonts.gstatic.com/s/fleurdeleah/v9/AYCNpXX7ftYZWLhv9UmPJTMC1vGn4Q.woff2")
+    new Font("Merriweather", "https://fonts.gstatic.com/s/merriweather/v31/u-4D0qyriQwlOrhSvowK_l5UcA6zuSYEqOzpPe3HOZJ5eX1WtLaQwmYiScCmDxhtNOKl8yDr3icaFF31.woff2"),
+    new Font("Fleur De Leah", "https://fonts.gstatic.com/s/fleurdeleah/v9/AYCNpXX7ftYZWLhv9UmPJTMC1vGn4Q.woff2")
   ];
   await load_all_fonts(FONTS);
   
   function random_font() {
     return FONTS[Math.floor(Math.random() * FONTS.length)].name;
-  }
-
-  // wrapper func
-  function text_to_image(text, config = {}) {
-    const { 
-      fontSize = 96, 
-      textColor = 'white',
-      bgColor = '#36393f', // Discord dark theme color
-      padding = 20, // padding around the text in pixels
-      maxWidth = 1600 // max width of the image in pixels
-    } = config;
-    
-    const measuringCanvas = document.createElement('canvas');
-    const measuringCtx = measuringCanvas.getContext('2d');
-
-    // pick a random font
-    let font = `${fontSize}px ${random_font()}`;
-    measuringCtx.font = font;
-    
-    // measure and wrap text
-    const words = text.split(' ');
-    const lines = [];
-    let currentLine = words[0];
-    let maxLineWidth = 0; // measure true line width, used if smaller than maxWidth
-    
-    for (let i = 1; i < words.length; i++) {
-      const word = words[i];
-      const width = measuringCtx.measureText(currentLine + ' ' + word).width;
-      if (width < maxWidth - padding * 2) {
-        currentLine += ' ' + word;
-      } else {
-        lines.push(currentLine);
-        maxLineWidth = Math.max(maxLineWidth, measuringCtx.measureText(currentLine).width);
-        currentLine = word;
-      }
-    }
-    lines.push(currentLine);
-    maxLineWidth = Math.max(maxLineWidth, measuringCtx.measureText(currentLine).width);
-    
-    const canvas = document.createElement('canvas');
-    const lineHeight = fontSize * 1.2;
-    canvas.width = Math.min(maxWidth, maxLineWidth + padding * 2);
-    canvas.height = lines.length * lineHeight + padding * 2;
-    
-    // start drawing
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    ctx.fillStyle = textColor;
-    ctx.font = font;
-    ctx.textBaseline = 'top';
-    
-    for (let i = 0; i < lines.length; i++) {
-      ctx.fillText(lines[i], padding, padding + i * lineHeight);
-    }
-    
-    return canvas;
   }
 
   // at minimum, authorization and x super properties are required
@@ -436,17 +455,85 @@ var cmd_parser = (function() {
   };
 
 
-  function is_message_req(data) {
-    return (data.content && !data.attachments && data.content.startsWith("!!"));
+  function is_cmd(data) {
+    amogus.log(`prefix: ${cmd_parser.PREFIX}, content: ${data.content}`);
+    return (data.content && !data.attachments && data.content.startsWith(cmd_parser.PREFIX));
   }
 
-  const send_custom_message = (xhr, data, args, i) => {
-    let msg = data.content.substring(2);
-    amogus.log(`text message`);
-    amogus.log(JSON.stringify(data));
-    // Convert the text to an image
-    const canvas = text_to_image(msg);
+  // wrapper func
+  function text_to_image(text, config = {}) {
+    amogus.log(`config before`, config);
+    const { 
+      fontName = 'Arial',
+      fontSize = 96, 
+      textColor = 'white',
+      bgColor = '#36393f', // Discord dark theme color
+      padding = 20, // padding around the text in pixels
+      maxWidth = 1600 // max width of the image in pixels
+    } = config;
 
+    
+    const measuringCanvas = document.createElement('canvas');
+    const measuringCtx = measuringCanvas.getContext('2d');
+
+    // pick a random font
+    let font = `${fontSize}px ${fontName}`;
+    measuringCtx.font = font;
+    
+    // measure and wrap text
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = words[0];
+    let maxLineWidth = 0; // measure true line width, used if smaller than maxWidth
+    
+    for (let i = 1; i < words.length; i++) {
+      const word = words[i];
+      const width = measuringCtx.measureText(currentLine + ' ' + word).width;
+      if (width < maxWidth - padding * 2) {
+        currentLine += ' ' + word;
+      } else {
+        lines.push(currentLine);
+        maxLineWidth = Math.max(maxLineWidth, measuringCtx.measureText(currentLine).width);
+        currentLine = word;
+      }
+    }
+    lines.push(currentLine);
+    maxLineWidth = Math.max(maxLineWidth, measuringCtx.measureText(currentLine).width);
+    
+    const canvas = document.createElement('canvas');
+    const lineHeight = fontSize * 1.2;
+    canvas.width = Math.min(maxWidth, maxLineWidth + padding * 2);
+    canvas.height = lines.length * lineHeight + padding * 2;
+    
+    // start drawing
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = textColor;
+    ctx.font = font;
+    ctx.textBaseline = 'top';
+    
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], padding, padding + i * lineHeight);
+    }
+
+    amogus.log(`end of text_to_image`);
+    
+    return canvas;
+  }
+  
+  function render_msg(xhr, data, args, i, res) {
+    let {text, config} = res;
+    if (config.name) { // we override the config with the stored one
+      let stored_config = renderer.get_config(config.name);
+      if (stored_config) {
+        config = stored_config; 
+      }
+    }
+    amogus.log(`text, config`, text, config);
+    const canvas = text_to_image(text, config);
+    amogus.log(`canvas, width, height`, canvas, canvas.width, canvas.height);
     // remove data content
     delete data.content;
     
@@ -476,6 +563,32 @@ var cmd_parser = (function() {
         amogus.log('Failed to upload image:', err);
         originalXHRSend.apply(xhr, args);
       });
+  }
+
+  const process_cmd = (xhr, data, args, i) => {
+    let res;
+    amogus.log(`data content`, data.content);
+    try {
+      res = cmd_parser.parse(data.content);
+    } catch (e) {
+      amogus.log('Failed to parse command:', e);
+      return;
+    }
+    amogus.log(`res:`, res);
+    if (!res) {
+      return;
+    }
+
+    amogus.log(`action: ${res.action}, config:`, res.config, `text: ${res.text}`);
+
+    if (res.action === 'render') {
+      render_msg(xhr, data, args, i, res);
+
+    } else if (res.action === 'setconfig') {
+      renderer.set_config(res.config.name, res.config);
+    } else if (res.action === 'delconfig') {
+      renderer.del_config(res.configName);
+    }
     
   };
     
@@ -486,8 +599,8 @@ var cmd_parser = (function() {
       try {
         let data = JSON.parse(arg);
         
-        if (is_message_req(data)) {
-          send_custom_message(this, data, args, i);
+        if (is_cmd(data)) {
+          process_cmd(this, data, args, i);
 
           // we sent our own so we prevent this one from being sent
           return;
