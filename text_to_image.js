@@ -76,7 +76,8 @@ var cmd_parser = (function() {
     'purple': '#800080',
     'orange': '#ffa500',
     'pink': '#ffc0cb',
-    'gray': '#808080'
+    'gray': '#808080',
+    'none': null,
   };
 
   const default_config = {
@@ -132,6 +133,12 @@ var cmd_parser = (function() {
           break;
         case 'color':
           config.textColor = colorMappings[value.toLowerCase()] || value;
+          break;
+        case 'stroke':
+          config.strokeColor = colorMappings[value.toLowerCase()] || value;
+          break;
+        case 'ssize':
+          config.strokeSize = parseInt(value) || default_config.strokeSize;
           break;
         case 'bg':
           config.bgColor = colorMappings[value.toLowerCase()] || value;
@@ -467,6 +474,8 @@ var renderer = (function() {
       fontName = 'Arial',
       fontSize = 96, 
       textColor = 'white',
+      strokeColor = 'black',
+      strokeSize = 5,
       bgColor = '#36393f', // Discord dark theme color
       padding = 20, // padding around the text in pixels
       maxWidth = 1600 // max width of the image in pixels
@@ -507,13 +516,28 @@ var renderer = (function() {
     
     // start drawing
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    ctx.fillStyle = textColor;
+    if (bgColor !== null) {
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
     ctx.font = font;
     ctx.textBaseline = 'top';
-    
+
+    if (strokeColor !== null) {
+      // set miter
+      ctx.lineJoin = 'miter';
+      // rounde
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = strokeSize;
+      
+      for (let i = 0; i < lines.length; i++) {
+        ctx.strokeText(lines[i], padding, padding + i * lineHeight);
+      }
+    }
+
+    ctx.fillStyle = textColor;
     for (let i = 0; i < lines.length; i++) {
       ctx.fillText(lines[i], padding, padding + i * lineHeight);
     }
