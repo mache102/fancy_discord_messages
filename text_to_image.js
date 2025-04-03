@@ -128,6 +128,10 @@ var cmd_parser = (function() {
         case 'font':
           config.fontName = value;
           break;
+        case 'weight':
+          config.fontWeight = value;
+          break;
+
         case 'size':
           config.fontSize = parseInt(value) || default_config.fontSize;
           break;
@@ -571,6 +575,7 @@ var renderer = (function() {
     const { 
       fontName = 'Arial',
       fontSize = 96, 
+      fontWeight = 'normal',
       textColor = 'white',
       strokeColor = null,
       strokeSize = 5,
@@ -586,7 +591,7 @@ var renderer = (function() {
     const measuringCtx = measuringCanvas.getContext('2d');
 
     // pick a random font
-    let font = `${fontSize}px ${fontName}`;
+    let font = `${fontWeight} ${fontSize}px ${fontName}`;
     measuringCtx.font = font;
     
     // measure and wrap text
@@ -635,9 +640,6 @@ var renderer = (function() {
     ctx.textAlign = 'left';
 
     if (strokeColor !== null) {
-      // set miter
-      ctx.lineJoin = 'miter';
-      // rounde
       ctx.lineCap = 'round';
       ctx.strokeStyle = strokeColor;
       ctx.lineWidth = strokeSize;
