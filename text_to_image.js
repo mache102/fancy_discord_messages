@@ -149,6 +149,10 @@ var cmd_parser = (function() {
         case 'width':
           config.maxWidth = parseInt(value) || default_config.maxWidth;
           break;
+
+        case 'emoji':
+          config.emoji = value;
+          break;
       }
     }
 
@@ -283,6 +287,45 @@ var storage_wrapper = (function() {
     get
   };
 })();
+
+var emojis = (function() {
+  const STRING_EMOJI_MAP = {
+    "smile": "😄",
+    "sad": "😢",
+    "angry": "😡",
+    "sob": "😭",
+    "heart_eyes": "😍",
+    "heart": "❤️",
+    "fire": "🔥",
+    "thumbsup": "👍",
+    "thumbsdown": "👎",
+    "clap": "👏",
+    "laugh": "😂",
+    "wow": "😮",
+    "confused": "🤔",
+    "party": "🎉",
+    "rocket": "🚀",
+    "eyes": "👀",
+    "wave": "👋",
+    "star": "⭐",
+    "check": "✅",
+    "cross": "❌",
+    "clock": "⏰",
+    "gift": "🎁",
+    "coffee": "☕",
+    "music": "🎵",
+    "thinking": "💭",
+    "pray": "🙏",
+    "cool": "😎",
+    "sleep": "😴",
+    "money": "💰",
+  };
+
+  return {
+    STRING_EMOJI_MAP,
+  };
+})();
+
 
 var renderer = (function() {
   let configs = {};
@@ -467,6 +510,59 @@ var renderer = (function() {
     return (data.content && !data.attachments && data.content.startsWith(cmd_parser.PREFIX));
   }
 
+  /*
+  randomly fills the canvas with the emoji
+
+  the fill density is proportionate to the canvas size
+  font sizes are between a * fontsize and b * fontsize
+
+  each with random pos and rotation
+  the pos range is extended by the font size on each side
+  */
+  function emoji_random_fill(ctx, emoji, fontSize) {
+    const density = 0.2; // 10% of the canvas will be filled with emojis
+    const min_size_factor = 0.5;
+    const max_size_factor = 2.0;
+
+    const canvas = ctx.canvas;
+    const width = canvas.width;
+    const height = canvas.height;
+    amogus.log(`emoji: ${emoji}`);
+    amogus.log(`c w,h: ${width}, ${height}`);
+
+    const num_emojis = Math.floor((width * height) * density / (fontSize * fontSize));
+    amogus.log(`num emojis: ${num_emojis}`);
+
+    ctx.font = `${fontSize}px Arial`;
+
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'white';
+
+    for (let i = 0; i < num_emojis; i++) {
+      const size_factor = Math.random() * (max_size_factor - min_size_factor) + min_size_factor;
+      const emojiSize = fontSize * size_factor;
+
+      const ses = emojiSize * 0.2;
+
+      const x = Math.random() * (width + 2 * ses) - ses;
+      const y = Math.random() * (height + 2 * ses) - ses;
+      amogus.log(`x,y: ${x}, ${y}`);
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.random() * Math.PI * 2);
+      ctx.font = `${emojiSize}px Arial`;
+      ctx.fillText(emoji, 0, 0);
+      ctx.restore();
+    }
+
+    // restore translate
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    amogus.log(`Filled canvas with ${num_emojis} emojis`);
+  }
+
   // wrapper func
   function text_to_image(text, config = {}) {
     amogus.log(`config before`, config);
@@ -474,11 +570,13 @@ var renderer = (function() {
       fontName = 'Arial',
       fontSize = 96, 
       textColor = 'white',
-      strokeColor = 'black',
+      strokeColor = 'null',
       strokeSize = 5,
       bgColor = '#36393f', // Discord dark theme color
       padding = 20, // padding around the text in pixels
-      maxWidth = 1600 // max width of the image in pixels
+      maxWidth = 1600, // max width of the image in pixels
+
+      emoji = null
     } = config;
 
     
@@ -513,16 +611,26 @@ var renderer = (function() {
     const lineHeight = fontSize * 1.2;
     canvas.width = Math.min(maxWidth, maxLineWidth + padding * 2);
     canvas.height = lines.length * lineHeight + padding * 2;
-    
-    // start drawing
     const ctx = canvas.getContext('2d');
+
+    // start drawing
     if (bgColor !== null) {
       ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
+    if (emoji !== null) {
+      let actual_emoji = emojis.STRING_EMOJI_MAP[emoji];
+      if (actual_emoji) {
+        emoji_random_fill(ctx, actual_emoji, fontSize);
+      }
+    }
+    
+
     ctx.font = font;
     ctx.textBaseline = 'top';
+    // revert textailgn
+    ctx.textAlign = 'left';
 
     if (strokeColor !== null) {
       // set miter
