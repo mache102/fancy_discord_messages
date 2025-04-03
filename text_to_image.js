@@ -407,7 +407,9 @@ var renderer = (function() {
     new Font("Ubuntu", "https://fonts.gstatic.com/s/ubuntu/v20/4iCs6KVjbNBYlgoKfw72.woff2"),
     new Font("Lora", "https://fonts.gstatic.com/s/lora/v35/0QI6MX1D_JOuGQbT0gvTJPa787weuxJBkq0.woff2"),
     new Font("Merriweather", "https://fonts.gstatic.com/s/merriweather/v31/u-4D0qyriQwlOrhSvowK_l5UcA6zuSYEqOzpPe3HOZJ5eX1WtLaQwmYiScCmDxhtNOKl8yDr3icaFF31.woff2"),
-    new Font("Fleur De Leah", "https://fonts.gstatic.com/s/fleurdeleah/v9/AYCNpXX7ftYZWLhv9UmPJTMC1vGn4Q.woff2")
+    new Font("Fleur De Leah", "https://fonts.gstatic.com/s/fleurdeleah/v9/AYCNpXX7ftYZWLhv9UmPJTMC1vGn4Q.woff2"),
+    new Font("Fredoka", "https://fonts.gstatic.com/s/fredoka/v16/X7nP4b87HvSqjb_WIi2yDCRwoQ_k7367_B-i2yQag0-mac3O8SL8EemK.woff2"),
+    new Font("Lilita One", "https://fonts.gstatic.com/s/lilitaone/v15/i7dPIFZ9Zz-WBtRtedDbYEF8RQ.woff2")
   ];
   await load_all_fonts(FONTS);
   
@@ -570,7 +572,7 @@ var renderer = (function() {
       fontName = 'Arial',
       fontSize = 96, 
       textColor = 'white',
-      strokeColor = 'null',
+      strokeColor = null,
       strokeSize = 5,
       bgColor = '#36393f', // Discord dark theme color
       padding = 20, // padding around the text in pixels
